@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS "student" (
   "email" varchar(255) NOT NULL,
   "age" int NOT NULL,
   "paid_sum" decimal(10, 2) NOT NULL DEFAULT 0,
-  "status" varchar(60) NOT NULL CHECK("status" IN ('active', 'inactive')) DEFAULT 'active',
+  "status" varchar(60) NOT NULL,
   "login" varchar(255) NOT NULL,
   "password" varchar(255) NOT NULL,
   "group_id" uuid REFERENCES "group"("id"),

@@ -1,16 +1,19 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"lms_back/api/models"
 	_ "lms_back/api/docs"
+	"lms_back/api/models"
+	"lms_back/pkg/password"
+	"lms_back/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-//CreateAdmin godoc
+// CreateAdmin godoc
 // @Router     /admin [POST]
 // @Summary    create a admin
 // Description This api creates a new admin return its id
@@ -26,20 +29,30 @@ func (h Handler) CreateAdmin(c *gin.Context) {
 	admin := models.Admin{}
 
 	if err := c.ShouldBindJSON(&admin); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Admin().Create(admin)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	hashedPass, err := password.HashPassword(admin.Password)
 	if err != nil {
-		handleResponse(c, "error while creating admin" , http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while generating customer password", http.StatusInternalServerError, err.Error())
+		return
+	}
+	admin.Password = string(hashedPass)
+
+	id, err := h.Service.Admin().Create(ctx, admin)
+	if err != nil {
+		handleResponseLog(c, h.Log, "error while creating admin", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	handleResponse(c, "created admin", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "created admin", http.StatusOK, id)
 }
 
-//UpdateAdmin godoc
+// UpdateAdmin godoc
 // @Router                /admin/{id} [PUT]
 // @Summary               Update Admin
 // @Description           This API Updates admin Information
@@ -55,21 +68,32 @@ func (h Handler) CreateAdmin(c *gin.Context) {
 func (h Handler) UpdateAdmin(c *gin.Context) {
 	admin := models.Admin{}
 	if err := c.ShouldBindJSON(&admin); err != nil {
-		handleResponse(c, "error while decoding request body",http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 	admin.Id = c.Param("id")
 	err := uuid.Validate(admin.Id)
 	if err != nil {
-		handleResponse(c, "error while validating", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating", http.StatusBadRequest, err.Error())
 		return
 	}
-	id, err := h.Store.Admin().Update(admin)
+
+	hashedPass, err := password.HashPassword(admin.Password)
 	if err != nil {
-		handleResponse(c, "error while updating admin", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while generating customer password", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "updated successfully",http.StatusOK, id)
+	admin.Password = string(hashedPass)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Admin().Update(ctx, admin)
+	if err != nil {
+		handleResponseLog(c, h.Log, "error while updating admin", http.StatusInternalServerError, err.Error())
+		return
+	}
+	handleResponseLog(c, h.Log, "updated successfully", http.StatusOK, id)
 }
 
 // GetAllAdmin godoc
@@ -90,17 +114,17 @@ func (h Handler) GetAllAdmins(c *gin.Context) {
 	var (
 		request = models.GetAllAdminsRequest{}
 	)
-	
+
 	request.Search = c.Query("search")
 
 	page, err := ParsePageQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing page", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing page", http.StatusInternalServerError, err.Error())
 		return
 	}
 	limit, err := ParseLimitQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing limit", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing limit", http.StatusInternalServerError, err.Error())
 		return
 	}
 	fmt.Println("page: ", page)
@@ -109,12 +133,15 @@ func (h Handler) GetAllAdmins(c *gin.Context) {
 	request.Page = page
 	request.Limit = limit
 
-	admins, err := h.Store.Admin().GetAll(request)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	admins, err := h.Service.Admin().GetAll(ctx, request)
 	if err != nil {
-		handleResponse(c,"error while getting admins", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting admins", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, admins)
+	handleResponseLog(c, h.Log, "", http.StatusOK, admins)
 }
 
 // GetByIDAdmin godoc
@@ -130,16 +157,19 @@ func (h Handler) GetAllAdmins(c *gin.Context) {
 // @Failure      404 {object} models.Response
 // @Failure      500 {object} models.Response
 func (h Handler) GetByIDAdmin(c *gin.Context) {
-	
+
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
-	admin, err := h.Store.Admin().GetByID(id)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	admin, err := h.Service.Admin().GetByID(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while getting admin by id", http.StatusInternalServerError, err)
+		handleResponseLog(c, h.Log, "error while getting admin by id", http.StatusInternalServerError, err)
 		return
 	}
-	handleResponse(c, "", http.StatusOK, admin)
+	handleResponseLog(c, h.Log, "", http.StatusOK, admin)
 }
 
 // DeleteAdmin godoc
@@ -161,13 +191,48 @@ func (h Handler) DeleteAdmin(c *gin.Context) {
 
 	err := uuid.Validate(id)
 	if err != nil {
-		handleResponse(c, "error while validating id", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating id", http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.Store.Admin().Delete(id)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	err = h.Service.Admin().Delete(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while deleting admin", http.StatusInternalServerError, err)
+		handleResponseLog(c, h.Log, "error while deleting admin", http.StatusInternalServerError, err)
 		return
 	}
-	handleResponse(c, "deleted admin", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "deleted admin", http.StatusOK, id)
+}
+
+// GetById AdminPayment godoc
+// @Router       /adminPay/{idAdmin} [GET]
+// @Summary      return a admin by payments
+// @Description  Retrieves a admin by its payments
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Admin ID"
+// @Success      200 {object} models.GetAdmin
+// @Failure      400 {object} models.Response
+// @Failure      404 {object} models.Response
+// @Failure      500 {object} models.Response
+func (h Handler) GetByIdAdminReport(c *gin.Context) {
+
+	id := c.Param("id")
+	fmt.Println("id: ", id)
+	adminPay := models.AdminKey{
+		Id: id,
+	}
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	admin, err := h.Service.Admin().GetByIdAdminReport(ctx, adminPay)
+	if err != nil {
+		handleResponseLog(c, h.Log, "error while getting admin by id", http.StatusInternalServerError, err)
+		return
+	}
+	handleResponseLog(c, h.Log, "", http.StatusOK, admin)
 }

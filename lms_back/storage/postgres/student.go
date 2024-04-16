@@ -3,12 +3,14 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"lms_back/api/models"
 	"lms_back/pkg"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type StudentRepo struct {
@@ -21,7 +23,90 @@ func NewStudent(db *pgxpool.Pool) StudentRepo {
 	}
 }
 
-func (c *StudentRepo) Create(student models.Student) (models.Student, error) {
+func (c *StudentRepo) Login(ctx context.Context, login models.StudentLoginRequest) (string, error) {
+	var hashedPass string
+
+	query := `SELECT password
+	FROM student
+	WHERE login = $1 AND deleted_at = 0`
+
+	err := c.db.QueryRow(ctx, query,
+		login.Login,
+	).Scan(&hashedPass)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", errors.New("incorrect login")
+		}
+		return "", err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(login.Password))
+	if err != nil {
+		return "", errors.New("password mismatch")
+	}
+
+	return "Logged in successfully", nil
+}
+
+func (s *StudentRepo) GetByLogin(ctx context.Context, login string) (models.Student, error) {
+	student := models.Student{}
+	var (
+		full_name sql.NullString
+		paid_sum  sql.NullFloat64
+		age       sql.NullInt16
+		email     sql.NullString
+		status    sql.NullString
+		group_id  sql.NullString
+		loginn    sql.NullString
+		createdat sql.NullString
+		updatedat sql.NullString
+	)
+
+	query := `SELECT 
+		id, 
+		full_name 
+		email,
+		age,
+		status,
+		paid_sum,
+		login,
+		password,
+		created_at, 
+		updated_at
+		FROM customers WHERE login = $1 AND deleted_at = 0`
+
+	row := s.db.QueryRow(ctx, query, login)
+
+	err := row.Scan(
+		&student.ID,
+		&paid_sum,
+		&age,
+		&email,
+		&status,
+		&group_id,
+		&loginn,
+		&createdat,
+		&updatedat,
+		&student.Password,
+	)
+
+	if err != nil {
+		return models.Student{}, err
+	}
+
+	student.Full_Name = full_name.String
+	student.Email = email.String
+	student.Age = int(age.Int16)
+	student.PaidSum = paid_sum.Float64
+	student.Status = status.String
+	student.Login = loginn.String
+	student.GroupID = group_id.String
+
+	return student, nil
+}
+
+func (c *StudentRepo) Create(ctx context.Context, student models.Student) (models.Student, error) {
 
 	id := uuid.New()
 	query := `INSERT INTO student (
@@ -33,8 +118,9 @@ func (c *StudentRepo) Create(student models.Student) (models.Student, error) {
 		status,
 		login,
 		password,
+		group_id,
 		created_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP) 
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,CURRENT_TIMESTAMP) 
 	`
 
 	_, err := c.db.Exec(context.Background(), query,
@@ -46,26 +132,29 @@ func (c *StudentRepo) Create(student models.Student) (models.Student, error) {
 		student.Status,
 		student.Login,
 		student.Password,
+		student.GroupID,
 	)
 
 	if err != nil {
 		return models.Student{}, err
 	}
+
 	return models.Student{
-		ID:         student.ID,
+		ID:         id.String(),
 		Full_Name:  student.Full_Name,
 		Email:      student.Email,
 		Age:        student.Age,
 		PaidSum:    student.PaidSum,
 		Login:      student.Login,
 		Password:   student.Password,
+		GroupID:    student.GroupID,
 		Created_At: student.Created_At,
 		Updated_At: student.Updated_At,
 	}, nil
 }
 
-func (c *StudentRepo) Update(student models.Student) (models.Student, error) {
-	query := `update student set 
+func (c *StudentRepo) Update(ctx context.Context, student models.Student) (models.Student, error) {
+	query := `UPDATE "student" set 
 		full_name=$1,
 		email=$2,
 		age=$3,
@@ -75,7 +164,7 @@ func (c *StudentRepo) Update(student models.Student) (models.Student, error) {
 		group_id=$7,
 		status=$8,
 		updated_at = CURRENT_TIMESTAMP
-		WHERE id = $9
+		WHERE id =$9
 	`
 	_, err := c.db.Exec(context.Background(), query,
 		student.Full_Name,
@@ -91,6 +180,7 @@ func (c *StudentRepo) Update(student models.Student) (models.Student, error) {
 	if err != nil {
 		return models.Student{}, err
 	}
+	fmt.Println(student.ID, "________423553453534524#%$^$%^#^@$%4324")
 	return models.Student{
 		ID:         student.ID,
 		Full_Name:  student.Full_Name,
@@ -101,10 +191,11 @@ func (c *StudentRepo) Update(student models.Student) (models.Student, error) {
 		Password:   student.Password,
 		Created_At: student.Created_At,
 		Updated_At: student.Updated_At,
+		Deleted_At: student.Deleted_At,
 	}, nil
 }
 
-func (c *StudentRepo) GetAll(req models.GetAllStudentsRequest) (models.GetAllStudentsResponse, error) {
+func (c *StudentRepo) GetAll(ctx context.Context, req models.GetAllStudentsRequest) (models.GetAllStudentsResponse, error) {
 	var (
 		resp   = models.GetAllStudentsResponse{}
 		filter = ""
@@ -139,8 +230,8 @@ func (c *StudentRepo) GetAll(req models.GetAllStudentsRequest) (models.GetAllStu
 			student    = models.Student{}
 			full_name  sql.NullString
 			email      sql.NullString
-			age        sql.NullInt16
-			paid_sum   sql.NullInt64
+			age        sql.NullInt64
+			paid_sum   sql.NullFloat64
 			status     sql.NullString
 			login      sql.NullString
 			password   sql.NullString
@@ -165,10 +256,11 @@ func (c *StudentRepo) GetAll(req models.GetAllStudentsRequest) (models.GetAllStu
 		}
 		student.Updated_At = pkg.NullStringToString(updated_at)
 		resp.Students = append(resp.Students, models.Student{
+			ID:         student.ID,
 			Full_Name:  full_name.String,
 			Email:      email.String,
-			Age:        int(age.Int16),
-			PaidSum:    float64(paid_sum.Int64),
+			Age:        int(age.Int64),
+			PaidSum:    paid_sum.Float64,
 			Status:     status.String,
 			Login:      login.String,
 			Password:   password.String,
@@ -180,13 +272,13 @@ func (c *StudentRepo) GetAll(req models.GetAllStudentsRequest) (models.GetAllStu
 	return resp, nil
 }
 
-func (c *StudentRepo) GetByID(id string) (models.Student, error) {
+func (c *StudentRepo) GetByID(ctx context.Context, id string) (models.Student, error) {
 	var (
 		student    = models.Student{}
 		full_name  sql.NullString
 		email      sql.NullString
-		age        sql.NullInt16
-		paid_sum   sql.NullInt64
+		age        sql.NullInt64
+		paid_sum   sql.NullFloat64
 		status     sql.NullString
 		login      sql.NullString
 		password   sql.NullString
@@ -210,10 +302,11 @@ func (c *StudentRepo) GetByID(id string) (models.Student, error) {
 		return models.Student{}, err
 	}
 	return models.Student{
+		ID:         student.ID,
 		Full_Name:  full_name.String,
 		Email:      email.String,
-		Age:        int(age.Int16),
-		PaidSum:    float64(paid_sum.Int64),
+		Age:        int(age.Int64),
+		PaidSum:    paid_sum.Float64,
 		Status:     status.String,
 		Login:      login.String,
 		Password:   password.String,
@@ -223,11 +316,31 @@ func (c *StudentRepo) GetByID(id string) (models.Student, error) {
 	}, nil
 }
 
-func (c *StudentRepo) Delete(id string) error {
+func (c *StudentRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from student where id = $1`
 	_, err := c.db.Exec(context.Background(), query, id)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (c *StudentRepo) GetPassword(ctx context.Context, login string) (string, error) {
+	var hashedPass string
+
+	query := `SELECT password
+	FROM student
+	WHERE login = $1 AND deleted_at = 0`
+
+	err := c.db.QueryRow(ctx, query, login).Scan(&hashedPass)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", errors.New("incorrect phone")
+		} else {
+			return "", err
+		}
+	}
+
+	return hashedPass, nil
 }

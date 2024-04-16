@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"lms_back/api/models"
 	_ "lms_back/api/docs"
+	"lms_back/api/models"
+	"lms_back/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,17 +29,20 @@ func (h Handler) CreateTask(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&task); err != nil {
 
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Task().Create(task)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Task().Create(ctx, task)
 	if err != nil {
-		handleResponse(c, "error while creating task", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while creating task", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	handleResponse(c, "created successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "created successfully", http.StatusOK, id)
 }
 
 // UpdateTask godoc
@@ -57,22 +62,26 @@ func (h Handler) UpdateTask(c *gin.Context) {
 
 	task := models.Task{}
 	if err := c.ShouldBindJSON(&task); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
 	task.Id = c.Query("id")
 	err := uuid.Validate(task.Id)
 	if err != nil {
-		handleResponse(c, "error while validating", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating", http.StatusBadRequest, err.Error())
 		return
 	}
-	id, err := h.Store.Task().Update(task)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Task().Update(ctx, task)
 	if err != nil {
-		handleResponse(c, "error while updating task", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while updating task", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "updated successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "updated successfully", http.StatusOK, id)
 }
 
 // GetAlltasks godoc
@@ -98,12 +107,12 @@ func (h Handler) GetAllTask(c *gin.Context) {
 
 	page, err := ParsePageQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing page", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing page", http.StatusInternalServerError, err.Error())
 		return
 	}
 	limit, err := ParseLimitQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing limit", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing limit", http.StatusInternalServerError, err.Error())
 		return
 	}
 	fmt.Println("page: ", page)
@@ -112,12 +121,15 @@ func (h Handler) GetAllTask(c *gin.Context) {
 	request.Page = page
 	request.Limit = limit
 
-	task, err := h.Store.Task().GetAll(request)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	task, err := h.Service.Task().GetAll(ctx, request)
 	if err != nil {
-		handleResponse(c, "error while getting task", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting task", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, task)
+	handleResponseLog(c, h.Log, "", http.StatusOK, task)
 }
 
 // GetByIDTask godoc
@@ -137,12 +149,15 @@ func (h Handler) GetByIDtask(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
-	task, err := h.Store.Task().GetByID(id)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	task, err := h.Service.Task().GetByID(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while getting task by id", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting task by id", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, task)
+	handleResponseLog(c, h.Log, "", http.StatusOK, task)
 }
 
 // DeleteTask godoc
@@ -164,13 +179,17 @@ func (h Handler) DeleteTask(c *gin.Context) {
 
 	err := uuid.Validate(id)
 	if err != nil {
-		handleResponse(c, "error while validating id", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating id", http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.Store.Task().Delete(id)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	err = h.Service.Task().Delete(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while deleting task", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while deleting task", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "deleted task", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "deleted task", http.StatusOK, id)
 }

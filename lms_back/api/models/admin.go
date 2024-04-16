@@ -32,7 +32,7 @@ type UpdateAdmin struct {
 
 type GetAdmin struct {
 	Id         string `json:"id"`
-	Full_Name  string `json:"full_name"` 
+	Full_Name  string `json:"full_name"`
 	Email      string `json:"email"`
 	Age        uint   `json:"age"`
 	Status     string `json:"status"`
@@ -50,4 +50,28 @@ type GetAllAdminsRequest struct {
 	Search string `json:"search"`
 	Page   uint64 `json:"page"`
 	Limit  uint64 `json:"limit"`
+}
+
+
+type AdminKey struct {
+	Id string `json:"id"`
+}
+
+type AdminReport struct {
+	ID       string `json:"id"`
+	FullName string `json:"fullname"`
+}
+
+type PaymentReport struct {
+	ID        string  `json:"id"`
+	Price     float64 `json:"price"`
+	StudentID string  `json:"student_id"`
+	BranchID  string  `json:"branch_id"`
+	CreatedAt string  `json:"created_at"`
+	UpdatedAt string  `json:"updated_at"`
+}
+
+type AdminPayment struct {
+	Admin   Admin   `json:"admin"`
+	Payment Payment `json:"payment"`
 }

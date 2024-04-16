@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"lms_back/api/models"
 	_ "lms_back/api/docs"
+	"lms_back/api/models"
+	"lms_back/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,20 +25,23 @@ import (
 // @Failure		404  {object}  models.Response
 // @Failure		500  {object}  models.Response
 func (h Handler) CreatePayment(c *gin.Context) {
-	payment := models.Payment{}
+	payment := models.CreatePayment{}
 
 	if err := c.ShouldBindJSON(&payment); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Payment().Create(payment)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Payment().Create(ctx, payment)
 	if err != nil {
-		handleResponse(c, "error while creating payment", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while creating payment", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	handleResponse(c, "created successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "created successfully", http.StatusOK, id)
 }
 
 // UpdatePayment godoc
@@ -55,22 +60,26 @@ func (h Handler) CreatePayment(c *gin.Context) {
 func (h Handler) UpdatePayment(c *gin.Context) {
 	payment := models.Payment{}
 	if err := c.ShouldBindJSON(&payment); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
 	payment.Id = c.Param("id")
 	err := uuid.Validate(payment.Id)
 	if err != nil {
-		handleResponse(c, "error while validating", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating", http.StatusBadRequest, err.Error())
 		return
 	}
-	id, err := h.Store.Payment().Update(payment)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Payment().Update(ctx, payment)
 	if err != nil {
-		handleResponse(c, "error while updating payment", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while updating payment", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "updated payment", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "updated payment", http.StatusOK, id)
 }
 
 // GetAllPayment godoc
@@ -96,12 +105,12 @@ func (h Handler) GetAllPayment(c *gin.Context) {
 
 	page, err := ParsePageQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing page", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing page", http.StatusInternalServerError, err.Error())
 		return
 	}
 	limit, err := ParseLimitQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing limit", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing limit", http.StatusInternalServerError, err.Error())
 		return
 	}
 	fmt.Println("page: ", page)
@@ -110,12 +119,15 @@ func (h Handler) GetAllPayment(c *gin.Context) {
 	request.Page = page
 	request.Limit = limit
 
-	payment, err := h.Store.Payment().GetAll(request)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	payment, err := h.Service.Payment().GetAll(ctx, request)
 	if err != nil {
-		handleResponse(c, "error while getting payment", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting payment", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, payment)
+	handleResponseLog(c, h.Log, "", http.StatusOK, payment)
 }
 
 // GetByIDpayment godoc
@@ -135,12 +147,15 @@ func (h Handler) GetByIDPayment(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
-	payment, err := h.Store.Payment().GetByID(id)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	payment, err := h.Service.Payment().GetByID(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while getting payment by id", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting payment by id", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, payment)
+	handleResponseLog(c, h.Log, "", http.StatusOK, payment)
 }
 
 // DeletePayment godoc
@@ -162,13 +177,17 @@ func (h Handler) DeletePayment(c *gin.Context) {
 
 	err := uuid.Validate(id)
 	if err != nil {
-		handleResponse(c, "error while validating id", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating id", http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.Store.Payment().Delete(id)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	err = h.Service.Payment().Delete(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while deleting payment", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while deleting payment", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "successfully deletes", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "successfully deletes", http.StatusOK, id)
 }

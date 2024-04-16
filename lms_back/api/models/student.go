@@ -16,25 +16,26 @@ type Student struct {
 }
 
 type CreateStudent struct {
-	Full_Name  string  `json:"full_name"`
-	Email      string  `json:"email"`
-	Age        int     `json:"age"`
-	PaidSum    float64 `json:"paid_sum"`
-	Status     string  `json:"status"`
-	Login      string  `json:"login"`
-	Password   string  `json:"password"`
-	GroupID    string  `json:"group_id"`
+	Full_Name string  `json:"full_name"`
+	Email     string  `json:"email"`
+	Age       int     `json:"age"`
+	PaidSum   float64 `json:"paid_sum"`
+	Status    string  `json:"status"`
+	Login     string  `json:"login"`
+	Password  string  `json:"password"`
+	GroupID   string  `json:"group_id"`
 }
 
 type UpdateStudent struct {
-	Full_Name  string  `json:"full_name"`
-	Email      string  `json:"email"`
-	Age        int     `json:"age"`
-	PaidSum    float64 `json:"paid_sum"`
-	Status     string  `json:"status"`
-	Login      string  `json:"login"`
-	Password   string  `json:"password"`
-	GroupID    string  `json:"group_id"`
+	ID        string  `json:"id"`
+	Full_Name string  `json:"full_name"`
+	Email     string  `json:"email"`
+	Age       int     `json:"age"`
+	PaidSum   float64 `json:"paid_sum"`
+	Status    string  `json:"status"`
+	Login     string  `json:"login"`
+	Password  string  `json:"password"`
+	GroupID   string  `json:"group_id"`
 }
 
 type GetStudent struct {
@@ -62,3 +63,4 @@ type GetAllStudentsRequest struct {
 	Page   uint64 `json:"page"`
 	Limit  uint64 `json:"limit"`
 }
+

@@ -11,36 +11,20 @@ import (
 )
 
 type paymentRepo struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
 }
 
 func NewPayment(db *pgxpool.Pool) paymentRepo {
 	return paymentRepo{
-		db: db,
+		db:     db,
 	}
 }
 
-func (p *paymentRepo) Create(payment models.Payment) (models.Payment, error) {
+func (p *paymentRepo) Create(ctx context.Context, payment models.CreatePayment) (models.Payment, error) {
 	id := uuid.New()
 
 	query := `INSERT INTO payment(id, price, student_id, branch_id, admin_id, created_at, updated_at) 
-	        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-			CREATE OR REPLACE FUNCTION update_student_paid_sum()
-			RETURNS TRIGGER AS $$
-			BEGIN
-				IF TG_OP = 'INSERT' THEN
-					UPDATE "student"
-					SET "paid_sum" = "paid_sum" + NEW.price
-					WHERE "id" = NEW.student_id;
-				END IF;
-				RETURN NEW;
-			END;
-			$$ LANGUAGE plpgsql;
-			  
-			CREATE TRIGGER update_student_paid_sum_trigger
-			AFTER INSERT ON "payment"
-			FOR EACH ROW
-			EXECUTE FUNCTION update_student_paid_sum();
+	        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 			`
 
 	_, err := p.db.Exec(context.Background(), query, id.String(), payment.Price, payment.Student_id, payment.Branch_id, payment.Admin_id)
@@ -48,17 +32,15 @@ func (p *paymentRepo) Create(payment models.Payment) (models.Payment, error) {
 		return models.Payment{}, err
 	}
 	return models.Payment{
-		Id:         payment.Id,
+		Id:         id.String(),
 		Price:      payment.Price,
 		Student_id: payment.Student_id,
 		Branch_id:  payment.Branch_id,
 		Admin_id:   payment.Admin_id,
-		CreatedAt:  payment.CreatedAt,
-		UpdatedAt:  payment.UpdatedAt,
 	}, nil
 }
 
-func (p *paymentRepo) GetAll(req models.GetAllPaymentsRequest) (models.GetAllPaymentsResponse, error) {
+func (p *paymentRepo) GetAll(ctx context.Context, req models.GetAllPaymentsRequest) (models.GetAllPaymentsResponse, error) {
 	var (
 		resp   = models.GetAllPaymentsResponse{}
 		filter = ""
@@ -79,7 +61,7 @@ func (p *paymentRepo) GetAll(req models.GetAllPaymentsRequest) (models.GetAllPay
 	for rows.Next() {
 		var (
 			payment    = models.Payment{}
-			price      sql.NullInt32
+			price      sql.NullFloat64
 			student_id sql.NullString
 			branch_id  sql.NullString
 			admin_id   sql.NullString
@@ -98,7 +80,8 @@ func (p *paymentRepo) GetAll(req models.GetAllPaymentsRequest) (models.GetAllPay
 			return resp, err
 		}
 		resp.Payments = append(resp.Payments, models.Payment{
-			Price:      float64(price.Int32),
+			Id:         payment.Id,
+			Price:      price.Float64,
 			Student_id: student_id.String,
 			Branch_id:  branch_id.String,
 			Admin_id:   admin_id.String,
@@ -109,10 +92,10 @@ func (p *paymentRepo) GetAll(req models.GetAllPaymentsRequest) (models.GetAllPay
 	return resp, nil
 }
 
-func (p *paymentRepo) GetByID(id string) (models.Payment, error) {
+func (p *paymentRepo) GetByID(ctx context.Context, id string) (models.Payment, error) {
 	var (
 		payment    = models.Payment{}
-		price      sql.NullInt32
+		price      sql.NullFloat64
 		student_id sql.NullString
 		branch_id  sql.NullString
 		admin_id   sql.NullString
@@ -133,7 +116,8 @@ func (p *paymentRepo) GetByID(id string) (models.Payment, error) {
 		return payment, err
 	}
 	return models.Payment{
-		Price:      float64(price.Int32),
+		Id:         payment.Id,
+		Price:      price.Float64,
 		Student_id: student_id.String,
 		Branch_id:  branch_id.String,
 		Admin_id:   admin_id.String,
@@ -142,25 +126,9 @@ func (p *paymentRepo) GetByID(id string) (models.Payment, error) {
 	}, nil
 }
 
-func (p *paymentRepo) Update(payment models.Payment) (models.Payment, error) {
-	query := `UPDATE payment SET price=$1, student_id=$2, branch_id=$3, admin_id=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5,
-	CREATE OR REPLACE FUNCTION update_student_paid_sum()
-	RETURNS TRIGGER AS $$
-	BEGIN
-		IF TG_OP = 'INSERT' THEN
-			UPDATE "student"
-			SET "paid_sum" = "paid_sum" + NEW.price
-			WHERE "id" = NEW.student_id;
-		END IF;
-		RETURN NEW;
-	END;
-	$$ LANGUAGE plpgsql;
-	
-	CREATE TRIGGER update_student_paid_sum_trigger
-	AFTER Update ON "payment"
-	FOR EACH ROW
-	EXECUTE FUNCTION update_student_paid_sum();
-	`
+func (p *paymentRepo) Update(ctx context.Context, payment models.Payment) (models.Payment, error) {
+	query := `UPDATE payment SET price=$1, student_id=$2, branch_id=$3, admin_id=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5`
+
 	_, err := p.db.Exec(context.Background(), query, payment.Price, payment.Student_id, payment.Branch_id, payment.Admin_id, payment.Id)
 	if err != nil {
 		return models.Payment{}, err
@@ -176,7 +144,7 @@ func (p *paymentRepo) Update(payment models.Payment) (models.Payment, error) {
 	}, nil
 }
 
-func (p *paymentRepo) Delete(id string) error {
+func (p *paymentRepo) Delete(ctx context.Context, id string) error {
 	_, err := p.db.Exec(context.Background(), `DELETE FROM payment WHERE id = $1`, id)
 	if err != nil {
 		return err

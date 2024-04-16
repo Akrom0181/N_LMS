@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"lms_back/api/models"
 	_ "lms_back/api/docs"
+	"lms_back/api/models"
+	"lms_back/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,16 +28,19 @@ func (h Handler) CreateLesson(c *gin.Context) {
 	lesson := models.Lesson{}
 
 	if err := c.ShouldBindJSON(&lesson); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Lesson().Create(lesson)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Lesson().Create(ctx, lesson)
 	if err != nil {
-		handleResponse(c, "error while creating lesson", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while creating lesson", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "created successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "created successfully", http.StatusOK, id)
 }
 
 // UpdateLesson godoc
@@ -55,7 +60,7 @@ func (h Handler) UpdateLesson(c *gin.Context) {
 
 	lesson := models.Lesson{}
 	if err := c.ShouldBindJSON(&lesson); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -63,16 +68,19 @@ func (h Handler) UpdateLesson(c *gin.Context) {
 	err := uuid.Validate(lesson.Id)
 
 	if err != nil {
-		handleResponse(c, "error while validating", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Lesson().Update(lesson)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Lesson().Update(ctx, lesson)
 	if err != nil {
-		handleResponse(c, "error while updating lesson", http.StatusInternalServerError, err)
+		handleResponseLog(c, h.Log, "error while updating lesson", http.StatusInternalServerError, err)
 		return
 	}
-	handleResponse(c, "updated successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "updated successfully", http.StatusOK, id)
 }
 
 // GetAllLessons godoc
@@ -97,12 +105,12 @@ func (h Handler) GetAllLessons(c *gin.Context) {
 
 	page, err := ParsePageQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing page", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing page", http.StatusInternalServerError, err.Error())
 		return
 	}
 	limit, err := ParseLimitQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing limit", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing limit", http.StatusInternalServerError, err.Error())
 		return
 	}
 	fmt.Println("page: ", page)
@@ -111,12 +119,15 @@ func (h Handler) GetAllLessons(c *gin.Context) {
 	request.Page = page
 	request.Limit = limit
 
-	branches, err := h.Store.Lesson().GetAll(request)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	branches, err := h.Service.Lesson().GetAll(ctx, request)
 	if err != nil {
-		handleResponse(c, "error while getting branches", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting branches", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, branches)
+	handleResponseLog(c, h.Log, "", http.StatusOK, branches)
 }
 
 // GetByIDLesson godoc
@@ -136,12 +147,15 @@ func (h Handler) GetByIDLesson(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
-	Branch, err := h.Store.Lesson().GetByID(id)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	Branch, err := h.Service.Lesson().GetByID(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while getting lesson by id", http.StatusInternalServerError, err)
+		handleResponseLog(c, h.Log, "error while getting lesson by id", http.StatusInternalServerError, err)
 		return
 	}
-	handleResponse(c, "", http.StatusOK, Branch)
+	handleResponseLog(c, h.Log, "", http.StatusOK, Branch)
 }
 
 // DeleteLessson godoc
@@ -157,19 +171,23 @@ func (h Handler) GetByIDLesson(c *gin.Context) {
 // @Failure         404 {object} models.Response
 // @Failure         500 {object} models.Response
 func (h Handler) DeleteLessson(c *gin.Context) {
-	
+
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
 	err := uuid.Validate(id)
 	if err != nil {
-		handleResponse(c, "error while validating id", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating id", http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.Store.Lesson().Delete(id)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	err = h.Service.Lesson().Delete(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while deleting lesson", http.StatusInternalServerError, err)
+		handleResponseLog(c, h.Log, "error while deleting lesson", http.StatusInternalServerError, err)
 		return
 	}
-	handleResponse(c, "", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "", http.StatusOK, id)
 }

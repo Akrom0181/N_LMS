@@ -21,7 +21,7 @@ func NewBranch(db *pgxpool.Pool) branchRepo {
 	}
 }
 
-func (c *branchRepo) Create(branch models.Branch) (models.Branch, error) {
+func (c *branchRepo) Create(ctx context.Context, branch models.Branch) (models.Branch, error) {
 
 	id := uuid.New()
 	query := `INSERT INTO branches (
@@ -41,12 +41,14 @@ func (c *branchRepo) Create(branch models.Branch) (models.Branch, error) {
 		return models.Branch{}, err
 	}
 	return models.Branch{
-		Name:    branch.Name,
-		Address: branch.Address,
+		Id:        branch.Id,
+		Name:      branch.Name,
+		Address:   branch.Address,
+		CreatedAt: branch.CreatedAt,
 	}, nil
 }
 
-func (c *branchRepo) Update(branch models.Branch) (models.Branch, error) {
+func (c *branchRepo) Update(ctx context.Context, branch models.Branch) (models.Branch, error) {
 	query := `update branches set 
 	name=$1,
 	address=$2,
@@ -70,7 +72,7 @@ func (c *branchRepo) Update(branch models.Branch) (models.Branch, error) {
 	}, nil
 }
 
-func (c *branchRepo) GetAll(req models.GetAllBranchesRequest) (models.GetAllBranchesResponse, error) {
+func (c *branchRepo) GetAll(ctx context.Context, req models.GetAllBranchesRequest) (models.GetAllBranchesResponse, error) {
 	var (
 		resp   = models.GetAllBranchesResponse{}
 		filter = ""
@@ -127,7 +129,7 @@ func (c *branchRepo) GetAll(req models.GetAllBranchesRequest) (models.GetAllBran
 	return resp, nil
 }
 
-func (c *branchRepo) GetByID(id string) (models.Branch, error) {
+func (c *branchRepo) GetByID(ctx context.Context, id string) (models.Branch, error) {
 
 	var (
 		branch     = models.Branch{}
@@ -148,6 +150,7 @@ func (c *branchRepo) GetByID(id string) (models.Branch, error) {
 		return models.Branch{}, err
 	}
 	return models.Branch{
+		Id:        branch.Id,
 		Name:      name.String,
 		Address:   address.String,
 		CreatedAt: created_at.String,
@@ -156,7 +159,7 @@ func (c *branchRepo) GetByID(id string) (models.Branch, error) {
 	}, nil
 }
 
-func (c *branchRepo) Delete(id string) error {
+func (c *branchRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from branches where id = $1`
 	_, err := c.db.Exec(context.Background(), query, id)
 	if err != nil {

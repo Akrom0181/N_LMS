@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"lms_back/config"
 	"lms_back/storage"
+
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,7 +13,7 @@ import (
 )
 
 type Store struct {
-	Pool *pgxpool.Pool
+	Pool   *pgxpool.Pool
 }
 
 func New(ctx context.Context, cfg config.Config) (storage.IStorage, error) {
@@ -34,12 +35,17 @@ func New(ctx context.Context, cfg config.Config) (storage.IStorage, error) {
 	}
 
 	return Store{
-		Pool: newPool,
+		Pool:   newPool,
 	}, nil
 }
 
 func (s Store) CloseDB() {
 	s.Pool.Close()
+}
+
+func (s Store) AdminReport() storage.IAdminReportStorage {
+	AdminReport := AdminPayment(s.Pool)
+	return &AdminReport
 }
 
 func (s Store) Admin() storage.IAdminStorage {
@@ -48,7 +54,7 @@ func (s Store) Admin() storage.IAdminStorage {
 	return &NewAdmin
 }
 
-func (s Store) Branches() storage.IBranchStorage {
+func (s Store) Branch() storage.IBranchStorage {
 	NewBranch := NewBranch(s.Pool)
 
 	return &NewBranch

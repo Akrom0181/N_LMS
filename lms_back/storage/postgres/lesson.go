@@ -21,7 +21,7 @@ func NewLesson(db *pgxpool.Pool) lessonRepo {
 	}
 }
 
-func (c *lessonRepo) Create(lesson models.Lesson) (models.Lesson, error) {
+func (c *lessonRepo) Create(ctx context.Context, lesson models.Lesson) (models.Lesson, error) {
 
 	id := uuid.New()
 	query := `INSERT INTO "lesson" (
@@ -59,7 +59,7 @@ func (c *lessonRepo) Create(lesson models.Lesson) (models.Lesson, error) {
 	}, nil
 }
 
-func (c *lessonRepo) Update(lesson models.Lesson) (models.Lesson, error) {
+func (c *lessonRepo) Update(ctx context.Context, lesson models.Lesson) (models.Lesson, error) {
 	query := `update "lesson" set 
 	schedule_id=$1,
 	group_id=$2,
@@ -92,7 +92,7 @@ func (c *lessonRepo) Update(lesson models.Lesson) (models.Lesson, error) {
 	}, nil
 }
 
-func (c *lessonRepo) GetAll(req models.GetAllLessonsRequest) (models.GetAllLessonsResponse, error) {
+func (c *lessonRepo) GetAll(ctx context.Context, req models.GetAllLessonsRequest) (models.GetAllLessonsResponse, error) {
 	var (
 		resp   = models.GetAllLessonsResponse{}
 		filter = ""
@@ -155,7 +155,7 @@ func (c *lessonRepo) GetAll(req models.GetAllLessonsRequest) (models.GetAllLesso
 	return resp, nil
 }
 
-func (c *lessonRepo) GetByID(id string) (models.Lesson, error) {
+func (c *lessonRepo) GetByID(ctx context.Context, id string) (models.Lesson, error) {
 	var (
 		lesson      = models.Lesson{}
 		schedule_id sql.NullString
@@ -188,7 +188,7 @@ func (c *lessonRepo) GetByID(id string) (models.Lesson, error) {
 	}, nil
 }
 
-func (c *lessonRepo) Delete(id string) error {
+func (c *lessonRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from "lesson" where id = $1`
 	_, err := c.db.Exec(context.Background(), query, id)
 	if err != nil {

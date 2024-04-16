@@ -1,43 +1,45 @@
 package handler
 
 import (
-	"fmt"
-	"lms_back/config"
 	"lms_back/api/models"
-	"lms_back/storage"
+	"lms_back/config"
+	"lms_back/pkg/logger"
+	"lms_back/service"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	Store storage.IStorage
+	Service service.IServiceManager
+	Log logger.ILogger
 }
 
-func NewStrg(store storage.IStorage) Handler {
+func NewStrg(service service.IServiceManager, log logger.ILogger) Handler {
 	return Handler{
-		Store: store,
+		Service: service,
+		Log: log,
 	}
 }
 
-func handleResponse(c *gin.Context, msg string, statusCode int, data interface{}) {
+func handleResponseLog(c *gin.Context, log logger.ILogger, msg string, statusCode int, data interface{}) {
 	resp := models.Response{}
 
 	if statusCode >= 100 && statusCode <= 199 {
 		resp.Description = config.ERR_INFORMATION
 	} else if statusCode >= 200 && statusCode <= 299 {
 		resp.Description = config.SUCCESS
+		log.Info("REQUEST SUCCEEDED", logger.Any("msg: ", msg), logger.Int("status: ", statusCode))
+
 	} else if statusCode >= 300 && statusCode <= 399 {
 		resp.Description = config.ERR_REDIRECTION
 	} else if statusCode >= 400 && statusCode <= 499 {
 		resp.Description = config.ERR_BADREQUEST
-		fmt.Println("BAD REQUEST: "+msg, "reason: ", data)
+		log.Error("!!!!!!!! BAD REQUEST !!!!!!!!", logger.Any("error: ", msg), logger.Int("status: ", statusCode))
 	} else {
 		resp.Description = config.ERR_INTERNAL_SERVER
-		fmt.Println("INTERNAL SERVER ERROR: "+msg, "reason: ", data)
+		log.Error("!!!!!!!! ERR_INTERNAL_SERVER !!!!!!!!", logger.Any("error: ", msg), logger.Int("status: ", statusCode))
 	}
-	resp.StatusCode = statusCode
-	resp.Data = data
 
 	resp.StatusCode = statusCode
 	resp.Data = data

@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"lms_back/api/models"
+	"lms_back/config"
+	"lms_back/pkg/password"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,13 +13,14 @@ import (
 )
 
 // CreateStudent godoc
-// @Router 		/student [POST]
-// @Summary 	create a student
-// @Description This api is creates a new student and returns its id
-// @Tags 		student
+// @Security ApiKeyAuth
+// @Router 		/student/login [POST]
+// @Summary     login
+// @Description This api is to login
+// @Tags 		auth
 // @Accept		json
 // @Produce		json
-// @Param		car  body      models.CreateStudent true "student"
+// @Param		student  body  models.CreateStudent true "student"
 // @Success		200  {object}  models.Student
 // @Failure		400  {object}  models.Response
 // @Failure		404  {object}  models.Response
@@ -26,20 +30,31 @@ func (h Handler) CreateStudent(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&student); err != nil {
 
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Student().Create(student)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	hashedPass, err := password.HashPassword(student.Password)
 	if err != nil {
-		handleResponse(c, "error while creating student", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while generating customer password", http.StatusInternalServerError, err.Error())
+		return
+	}
+	student.Password = string(hashedPass)
+
+	id, err := h.Service.Student().Create(ctx, student)
+	if err != nil {
+		handleResponseLog(c, h.Log, "error while creating student", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	handleResponse(c, "created successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "created successfully", http.StatusOK, id)
 }
 
 // UpdateStudent godoc
+// @Security ApiKeyAuth
 // @Router                /student/{id} [PUT]
 // @Summary 			  update a student
 // @Description:          this api updates student information
@@ -56,22 +71,35 @@ func (h Handler) UpdateStudent(c *gin.Context) {
 
 	student := models.Student{}
 	if err := c.ShouldBindJSON(&student); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
 	student.ID = c.Query("id")
+
 	err := uuid.Validate(student.ID)
 	if err != nil {
-		handleResponse(c, "error while validating", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating", http.StatusBadRequest, err.Error())
 		return
 	}
-	id, err := h.Store.Student().Update(student)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+
+	hashedPass, err := password.HashPassword(student.Password)
 	if err != nil {
-		handleResponse(c, "error while updating student", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while generating customer password", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "updated successfully", http.StatusOK, id)
+	
+	student.Password = string(hashedPass)
+	id, err := h.Service.Student().Update(ctx, student)
+	if err != nil {
+		handleResponseLog(c, h.Log, "error while updating student", http.StatusInternalServerError, err.Error())
+		return
+	}
+	handleResponseLog(c, h.Log, "updated successfully", http.StatusOK, id)
 }
 
 // GetAllStudents godoc
@@ -97,12 +125,12 @@ func (h Handler) GetAllStudent(c *gin.Context) {
 
 	page, err := ParsePageQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing page", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing page", http.StatusInternalServerError, err.Error())
 		return
 	}
 	limit, err := ParseLimitQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing limit", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing limit", http.StatusInternalServerError, err.Error())
 		return
 	}
 	fmt.Println("page: ", page)
@@ -111,12 +139,15 @@ func (h Handler) GetAllStudent(c *gin.Context) {
 	request.Page = page
 	request.Limit = limit
 
-	student, err := h.Store.Student().GetAll(request)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	student, err := h.Service.Student().GetAll(ctx, request)
 	if err != nil {
-		handleResponse(c, "error while getting student", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting student", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, student)
+	handleResponseLog(c, h.Log, "", http.StatusOK, student)
 }
 
 // GetByIDStudent godoc
@@ -136,12 +167,15 @@ func (h Handler) GetByIDStudent(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
-	student, err := h.Store.Student().GetByID(id)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	student, err := h.Service.Student().GetByID(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while getting student by id", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting student by id", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, student)
+	handleResponseLog(c, h.Log, "", http.StatusOK, student)
 }
 
 // DeleteStudent godoc
@@ -163,13 +197,17 @@ func (h Handler) DeleteStudent(c *gin.Context) {
 
 	err := uuid.Validate(id)
 	if err != nil {
-		handleResponse(c, "error while validating id", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating id", http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.Store.Student().Delete(id)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	err = h.Service.Student().Delete(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while deleting student", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while deleting student", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "deleted student", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "deleted student", http.StatusOK, id)
 }

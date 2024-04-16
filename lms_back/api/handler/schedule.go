@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"lms_back/api/models"
 	_ "lms_back/api/docs"
+	"lms_back/api/models"
+	"lms_back/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,17 +28,20 @@ func (h Handler) CreateSchedule(c *gin.Context) {
 	schedule := models.Schedule{}
 
 	if err := c.ShouldBindJSON(&schedule); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := h.Store.Schedule().Create(schedule)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Schedule().Create(ctx, schedule)
 	if err != nil {
-		handleResponse(c, "error while creating schedule", http.StatusInternalServerError, err)
+		handleResponseLog(c, h.Log, "error while creating schedule", http.StatusInternalServerError, err)
 		return
 	}
 
-	handleResponse(c, "created successfully", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "created successfully", http.StatusOK, id)
 }
 
 // UpdateSchedule godoc
@@ -56,22 +61,26 @@ func (h Handler) UpdateSchedule(c *gin.Context) {
 
 	schedule := models.Schedule{}
 	if err := c.ShouldBindJSON(&schedule); err != nil {
-		handleResponse(c, "error while decoding request body", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while decoding request body", http.StatusBadRequest, err.Error())
 		return
 	}
 
 	schedule.Id = c.Param("id")
 	err := uuid.Validate(schedule.Id)
 	if err != nil {
-		handleResponse(c, "error while validating", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating", http.StatusBadRequest, err.Error())
 		return
 	}
-	id, err := h.Store.Schedule().Update(schedule)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	id, err := h.Service.Schedule().Update(ctx, schedule)
 	if err != nil {
-		handleResponse(c, "error while updating schedule", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while updating schedule", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "", http.StatusOK, id)
 }
 
 // GetAllSchedules godoc
@@ -96,12 +105,12 @@ func (h Handler) GetAllSchedule(c *gin.Context) {
 
 	page, err := ParsePageQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing page", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing page", http.StatusInternalServerError, err.Error())
 		return
 	}
 	limit, err := ParseLimitQueryParam(c)
 	if err != nil {
-		handleResponse(c, "error while parsing limit", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while parsing limit", http.StatusInternalServerError, err.Error())
 		return
 	}
 	fmt.Println("page: ", page)
@@ -110,12 +119,15 @@ func (h Handler) GetAllSchedule(c *gin.Context) {
 	request.Page = page
 	request.Limit = limit
 
-	schedule, err := h.Store.Schedule().GetAll(request)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	schedule, err := h.Service.Schedule().GetAll(ctx, request)
 	if err != nil {
-		handleResponse(c, "error while getting schedule", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting schedule", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, schedule)
+	handleResponseLog(c, h.Log, "", http.StatusOK, schedule)
 }
 
 // GetByIDSchedule godoc
@@ -135,12 +147,15 @@ func (h Handler) GetByIDSchedule(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Println("id: ", id)
 
-	schedule, err := h.Store.Schedule().GetByID(id)
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	schedule, err := h.Service.Schedule().GetByID(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while getting schedule by id", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while getting schedule by id", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "", http.StatusOK, schedule)
+	handleResponseLog(c, h.Log, "", http.StatusOK, schedule)
 }
 
 // DeleteSchedule godoc
@@ -162,13 +177,17 @@ func (h Handler) DeleteSchedule(c *gin.Context) {
 
 	err := uuid.Validate(id)
 	if err != nil {
-		handleResponse(c, "error while validating id", http.StatusBadRequest, err.Error())
+		handleResponseLog(c, h.Log, "error while validating id", http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.Store.Schedule().Delete(id)
+
+	ctx, cancel := context.WithTimeout(c, config.Timeout)
+	defer cancel()
+
+	err = h.Service.Schedule().Delete(ctx, id)
 	if err != nil {
-		handleResponse(c, "error while deleting schedule", http.StatusInternalServerError, err.Error())
+		handleResponseLog(c, h.Log, "error while deleting schedule", http.StatusInternalServerError, err.Error())
 		return
 	}
-	handleResponse(c, "schedule deleted", http.StatusOK, id)
+	handleResponseLog(c, h.Log, "schedule deleted", http.StatusOK, id)
 }

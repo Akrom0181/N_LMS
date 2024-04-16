@@ -21,7 +21,7 @@ func NewTask(db *pgxpool.Pool) TaskRepo {
 	}
 }
 
-func (c *TaskRepo) Create(task models.Task) (models.Task, error) {
+func (c *TaskRepo) Create(ctx context.Context, task models.Task) (models.Task, error) {
 
 	id := uuid.New()
 	query := `INSERT INTO "task" (
@@ -53,8 +53,8 @@ func (c *TaskRepo) Create(task models.Task) (models.Task, error) {
 	}, nil
 }
 
-func (c *TaskRepo) Update(task models.Task) (models.Task, error) {
-	query := `update "task" set
+func (c *TaskRepo) Update(ctx context.Context, task models.Task) (models.Task, error) {
+	query := `UPDATE "task" set
 	lesson_id=$1, 
 	group_id=$2,
     score=$3,
@@ -80,7 +80,7 @@ func (c *TaskRepo) Update(task models.Task) (models.Task, error) {
 	}, nil
 }
 
-func (c *TaskRepo) GetAll(req models.GetAllTasksRequest) (models.GetAllTasksResponse, error) {
+func (c *TaskRepo) GetAll(ctx context.Context, req models.GetAllTasksRequest) (models.GetAllTasksResponse, error) {
 	var (
 		resp   = models.GetAllTasksResponse{}
 		filter = ""
@@ -133,7 +133,7 @@ func (c *TaskRepo) GetAll(req models.GetAllTasksRequest) (models.GetAllTasksResp
 	return resp, nil
 }
 
-func (c *TaskRepo) GetByID(id string) (models.Task, error) {
+func (c *TaskRepo) GetByID(ctx context.Context, id string) (models.Task, error) {
 	var (
 		task       = models.Task{}
 		lesson_id  sql.NullString
@@ -158,7 +158,7 @@ func (c *TaskRepo) GetByID(id string) (models.Task, error) {
 	}, nil
 }
 
-func (c *TaskRepo) Delete(id string) error {
+func (c *TaskRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from "task" where id = $1`
 	_, err := c.db.Exec(context.Background(), query, id)
 	if err != nil {

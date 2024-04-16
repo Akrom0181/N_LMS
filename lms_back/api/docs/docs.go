@@ -277,6 +277,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/adminPay/{idAdmin}": {
+            "get": {
+                "description": "Retrieves a admin by its payments",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "return a admin by payments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.GetAdmin"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/branch": {
             "get": {
                 "description": "This API returns branch list",
@@ -1643,9 +1693,16 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
+            }
+        },
+        "/student/login": {
             "post": {
-                "description": "This api is creates a new student and returns its id",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "This api is to login",
                 "consumes": [
                     "application/json"
                 ],
@@ -1653,13 +1710,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "student"
+                    "auth"
                 ],
-                "summary": "create a student",
+                "summary": "login",
                 "parameters": [
                     {
                         "description": "student",
-                        "name": "car",
+                        "name": "student",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -1745,6 +1802,11 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -3175,6 +3237,28 @@ const docTemplate = `{
                 }
             }
         },
+        "models.StudentLoginRequest": {
+            "type": "object",
+            "properties": {
+                "login": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.StudentLoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Task": {
             "type": "object",
             "properties": {
@@ -3360,6 +3444,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "group_id": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "login": {

@@ -22,7 +22,7 @@ func NewAdmin(db *pgxpool.Pool) adminRepo {
 	}
 }
 
-func (c *adminRepo) Create(admin models.Admin) (models.Admin, error) {
+func (c *adminRepo) Create(ctx context.Context, admin models.Admin) (models.Admin, error) {
 
 	id := uuid.New()
 	query := `INSERT INTO "admin" (
@@ -62,7 +62,7 @@ func (c *adminRepo) Create(admin models.Admin) (models.Admin, error) {
 	}, nil
 }
 
-func (c *adminRepo) Update(admin models.Admin) (models.Admin, error) {
+func (c *adminRepo) Update(ctx context.Context, admin models.Admin) (models.Admin, error) {
 	query := `update "admin" set 
 	full_name=$1,
 	email=$2,
@@ -97,7 +97,7 @@ func (c *adminRepo) Update(admin models.Admin) (models.Admin, error) {
 	}, nil
 }
 
-func (c *adminRepo) GetAll(req models.GetAllAdminsRequest) (models.GetAllAdminsResponse, error) {
+func (c *adminRepo) GetAll(ctx context.Context, req models.GetAllAdminsRequest) (models.GetAllAdminsResponse, error) {
 	var (
 		resp   = models.GetAllAdminsResponse{}
 		filter = ""
@@ -168,7 +168,7 @@ func (c *adminRepo) GetAll(req models.GetAllAdminsRequest) (models.GetAllAdminsR
 	return resp, nil
 }
 
-func (c *adminRepo) GetByID(id string) (models.Admin, error) {
+func (c *adminRepo) GetByID(ctx context.Context, id string) (models.Admin, error) {
 	admin := models.Admin{}
 	var (
 		full_name  sql.NullString
@@ -205,7 +205,7 @@ func (c *adminRepo) GetByID(id string) (models.Admin, error) {
 	}, nil
 }
 
-func (c *adminRepo) Delete(id string) error {
+func (c *adminRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from "admin" where id = $1`
 	_, err := c.db.Exec(context.Background(), query, id)
 	if err != nil {

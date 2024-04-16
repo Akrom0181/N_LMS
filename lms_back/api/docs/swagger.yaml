@@ -521,6 +521,20 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.StudentLoginRequest:
+    properties:
+      login:
+        type: string
+      password:
+        type: string
+    type: object
+  models.StudentLoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
   models.Task:
     properties:
       created_at:
@@ -642,6 +656,8 @@ definitions:
       full_name:
         type: string
       group_id:
+        type: string
+      id:
         type: string
       login:
         type: string
@@ -853,6 +869,39 @@ paths:
           schema:
             $ref: '#/definitions/models.Response'
       summary: Update Admin
+      tags:
+      - admin
+  /adminPay/{idAdmin}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a admin by its payments
+      parameters:
+      - description: Admin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.GetAdmin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Response'
+      summary: return a admin by payments
       tags:
       - admin
   /branch:
@@ -1758,39 +1807,6 @@ paths:
       summary: get all students
       tags:
       - student
-    post:
-      consumes:
-      - application/json
-      description: This api is creates a new student and returns its id
-      parameters:
-      - description: student
-        in: body
-        name: car
-        required: true
-        schema:
-          $ref: '#/definitions/models.CreateStudent'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Student'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/models.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.Response'
-      summary: create a student
-      tags:
-      - student
   /student/{id}:
     delete:
       consumes:
@@ -1890,9 +1906,47 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
       summary: update a student
       tags:
       - student
+  /student/login:
+    post:
+      consumes:
+      - application/json
+      description: This api is to login
+      parameters:
+      - description: student
+        in: body
+        name: student
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateStudent'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Student'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: login
+      tags:
+      - auth
   /task:
     get:
       description: This API returns task list

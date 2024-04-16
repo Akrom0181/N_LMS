@@ -23,14 +23,14 @@ func NewGroup(db *pgxpool.Pool) GroupRepo {
 	}
 }
 
-func (g *GroupRepo) Create(group models.Group) (models.Group, error) {
+func (g *GroupRepo) Create(ctx context.Context, group models.Group) (models.Group, error) {
 	id := uuid.New()
 	var group_unique_id string
 
-	maxQuery := `SELECT MAX(group_id) from "group"`
+	maxQuery := `SELECT COALESCE(MAX(group_id), 'GR-0000000') FROM "group"`
 	err := g.db.QueryRow(context.Background(), maxQuery).Scan(&group_unique_id)
 	if err != nil {
-		if err.Error() != "can't scan into dest[0]: cannot scan null into *string" && err.Error() != "no rows in result set" {
+		if err.Error() != "can't scan into dest[0]: cannot scan null into *string" {
 			return models.Group{}, err
 		} else {
 			group_unique_id = "GR-0000000"
@@ -69,11 +69,10 @@ func (g *GroupRepo) Create(group models.Group) (models.Group, error) {
 		Teacher_id: group.Teacher_id,
 		Type:       group.Type,
 		Created_at: group.Created_at,
-		Updated_at: group.Updated_at,
 	}, nil
 }
 
-func (g *GroupRepo) Update(group models.Group) (models.Group, error) {
+func (g *GroupRepo) Update(ctx context.Context, group models.Group) (models.Group, error) {
 	query := `UPDATE "group" SET
 		type=$1,
 		updated_at=CURRENT_TIMESTAMP
@@ -94,7 +93,7 @@ func (g *GroupRepo) Update(group models.Group) (models.Group, error) {
 	}, nil
 }
 
-func (g *GroupRepo) GetAll(req models.GetAllGroupsRequest) (models.GetAllGroupsResponse, error) {
+func (g *GroupRepo) GetAll(ctx context.Context, req models.GetAllGroupsRequest) (models.GetAllGroupsResponse, error) {
 	var (
 		resp   = models.GetAllGroupsResponse{}
 		filter = ""
@@ -144,6 +143,7 @@ func (g *GroupRepo) GetAll(req models.GetAllGroupsRequest) (models.GetAllGroupsR
 		}
 		group.Updated_at = pkg.NullStringToString(updateAt)
 		resp.Groups = append(resp.Groups, models.Group{
+			Id:         group.Id,
 			Group_id:   group_id.String,
 			Branch_id:  branch_id.String,
 			Teacher_id: teacher_id.String,
@@ -155,7 +155,7 @@ func (g *GroupRepo) GetAll(req models.GetAllGroupsRequest) (models.GetAllGroupsR
 	return resp, nil
 }
 
-func (g *GroupRepo) GetByID(id string) (models.Group, error) {
+func (g *GroupRepo) GetByID(ctx context.Context, id string) (models.Group, error) {
 	var (
 		group      = models.Group{}
 		group_id   sql.NullString
@@ -185,7 +185,7 @@ func (g *GroupRepo) GetByID(id string) (models.Group, error) {
 	}, nil
 }
 
-func (g *GroupRepo) Delete(id string) error {
+func (g *GroupRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from "group" where id = $1`
 	_, err := g.db.Exec(context.Background(), query, id)
 	if err != nil {

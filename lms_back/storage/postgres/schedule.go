@@ -21,7 +21,7 @@ func NewSchedule(db *pgxpool.Pool) ScheduleRepo {
 	}
 }
 
-func (c *ScheduleRepo) Create(schedule models.Schedule) (models.Schedule, error) {
+func (c *ScheduleRepo) Create(ctx context.Context, schedule models.Schedule) (models.Schedule, error) {
 
 	id := uuid.New()
 	query := `INSERT INTO schedule (
@@ -66,7 +66,7 @@ func (c *ScheduleRepo) Create(schedule models.Schedule) (models.Schedule, error)
 	}, nil
 }
 
-func (c *ScheduleRepo) Update(schedule models.Schedule) (models.Schedule, error) {
+func (c *ScheduleRepo) Update(ctx context.Context, schedule models.Schedule) (models.Schedule, error) {
 	query := `update schedule set 
 	group_id=$1,
 	group_type=$2,
@@ -106,7 +106,7 @@ func (c *ScheduleRepo) Update(schedule models.Schedule) (models.Schedule, error)
 	}, nil
 }
 
-func (c *ScheduleRepo) GetAll(req models.GetAllSchedulesRequest) (models.GetAllSchedulesResponse, error) {
+func (c *ScheduleRepo) GetAll(ctx context.Context, req models.GetAllSchedulesRequest) (models.GetAllSchedulesResponse, error) {
 	var (
 		resp   = models.GetAllSchedulesResponse{}
 		filter = ""
@@ -179,7 +179,7 @@ func (c *ScheduleRepo) GetAll(req models.GetAllSchedulesRequest) (models.GetAllS
 	return resp, nil
 }
 
-func (c *ScheduleRepo) GetByID(id string) (models.Schedule, error) {
+func (c *ScheduleRepo) GetByID(ctx context.Context, id string) (models.Schedule, error) {
 	var (
 		schedule   = models.Schedule{}
 		group_id   sql.NullString
@@ -221,7 +221,7 @@ func (c *ScheduleRepo) GetByID(id string) (models.Schedule, error) {
 	}, nil
 }
 
-func (c *ScheduleRepo) Delete(id string) error {
+func (c *ScheduleRepo) Delete(ctx context.Context, id string) error {
 	query := `delete from schedule where id = $1`
 	_, err := c.db.Exec(context.Background(), query, id)
 	if err != nil {
